@@ -42,11 +42,31 @@ static void drawOptFlowColumn(const Mat& flow, Mat& cflowmap, int column,int ste
 	}
 }
 
-double x_component(Mat& input)
+void x_component(Mat& input)
 {
-	double output;
-
-	return output;
+	for (int row=0;row<input.rows;row++)
+	{
+		for (int col=0;col<input.cols;col++ )
+		{
+			//input.at<Point2f>(row, col);
+			Point2f& fxy=input.at<Point2f>(row,col);
+			fxy.y=0;
+			input.at<Point2f>(row,col)=fxy;
+		}
+	}
+}
+void save_x_component(Mat& input, Mat& output, int frameCounter)
+{
+	for (int row=0;row<input.rows;row++)
+	{
+		for (int col=0;col<input.cols;col++ )
+		{
+			Point2f& fxy=input.at<Point2f>(row,col);
+			fxy.y=0;
+			fxy.x=abs(fxy.x);
+			output.at<char>(row,frameCounter)=2*fxy.x;
+		}
+	}
 }
 
 int modeEachRow(const Mat& input,float& mode)
@@ -88,6 +108,7 @@ int main()
 	int kernelSize=7;
 	Mat flow,flowx,flowy;
 	vector<Mat> flowChannels(2);
+	
 
 	VideoCapture video =VideoCapture("18_cut.avi");
 	VideoWriter videoOut;
@@ -100,6 +121,7 @@ int main()
 	double total_frames;
 	total_frames=video.get(CV_CAP_PROP_FRAME_COUNT);
 	video>>showImg;
+	Mat mask_img = Mat(showImg.rows,total_frames,CV_8U);
 	temp_mat=showImg.clone();
 	curFrame=temp_mat(Rect(3*temp_mat.cols/4,0,temp_mat.cols/4,temp_mat.rows));
 	cv::cvtColor(curFrame,lastGrey,CV_BGR2GRAY);
@@ -123,13 +145,16 @@ int main()
 		//flowx=flowChannels[0];
 		//flowy=flowChannels[1];
 		//drawOptFlowMap(flow,curFrame,8, CV_RGB(0, 255, 0));
+		//x_component(flow);
+		//save_x_component(flow,mask_img(Range(frameCounter,frameCounter+1),Range::all()));
+		save_x_component(flow,mask_img,frameCounter);
 		drawOptFlowColumn(flow,curFrame,CUT_COLUMN,1, CV_RGB(0, 255, 0));
 		imshow("optical flow",curFrame);
 		waitKey(33);
 		frameCounter++;
 
 	}
-
+	imwrite("mask.tiff",mask_img);
 	waitKey();
 	return 0;
 }
