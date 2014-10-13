@@ -55,8 +55,9 @@ void x_component(Mat& input)
 		}
 	}
 }
-void save_x_component(Mat& input, Mat& output, int frameCounter)
+void save_x_component(Mat& input, Mat& output, int frameCounter, int threshold, Mat& BG_model, Mat& curFrame)
 {
+	double err_tol=5;
 	for (int row=0;row<input.rows;row++)
 	{
 		for (int col=0;col<input.cols;col++ )
@@ -64,7 +65,23 @@ void save_x_component(Mat& input, Mat& output, int frameCounter)
 			Point2f& fxy=input.at<Point2f>(row,col);
 			fxy.y=0;
 			fxy.x=abs(fxy.x);
-			output.at<char>(row,frameCounter)=2*fxy.x;
+			if(fxy.x<threshold)
+			{
+				Vec3f img=curFrame.at<Vec3b>(row,col);
+				Vec3f bg=BG_model.at<Vec3b>(row,0);
+				if (abs((img.val[0]-bg.val[0]<err_tol))&&(abs(img.val[1]-bg.val[1]<err_tol))&&(abs(img.val[2]-bg.val[2])<err_tol))
+				{
+					output.at<char>(row,frameCounter)=255;
+				}
+				else
+				{
+					output.at<char>(row,frameCounter)=0;
+				}
+			}
+			else
+			{
+				output.at<char>(row,frameCounter)=20*fxy.x;
+			}
 		}
 	}
 }
@@ -108,7 +125,19 @@ int main()
 	int kernelSize=7;
 	Mat flow,flowx,flowy;
 	vector<Mat> flowChannels(2);
-	
+	int thresh=5;
+	//the array to keep track of local max flows
+	//list<double,int> local_max_list;
+	//double local_max=0;
+
+	Mat BG_model;
+	BG_model=imread("bg_model.tiff",1);
+	Vec3b bg=BG_model.at<Vec3b>(0,0);
+	if (BG_model.empty())
+	{
+		cout<<"could not load background model!"<<endl;
+		return 0;
+	}
 
 	VideoCapture video =VideoCapture("18_cut.avi");
 	VideoWriter videoOut;
@@ -140,14 +169,14 @@ int main()
 		temp_mat=showImg.clone();
 		curFrame=temp_mat(Rect(3*temp_mat.cols/4,0,temp_mat.cols/4,temp_mat.rows));
 		cv::cvtColor(curFrame,curGrey,CV_BGR2GRAY);
-		calcOpticalFlowFarneback(lastGrey,curGrey,flow,0.5,2,16,5,5,1.1,0);
+		calcOpticalFlowFarneback(lastGrey,curGrey,flow,0.5,8,16,2,5,1.1,0);
 		//split(flow,flowChannels);
 		//flowx=flowChannels[0];
 		//flowy=flowChannels[1];
-		//drawOptFlowMap(flow,curFrame,8, CV_RGB(0, 255, 0));
+		drawOptFlowMap(flow,curFrame,8, CV_RGB(0, 255, 0));
 		//x_component(flow);
 		//save_x_component(flow,mask_img(Range(frameCounter,frameCounter+1),Range::all()));
-		save_x_component(flow,mask_img,frameCounter);
+		save_x_component(flow,mask_img,frameCounter, thresh,BG_model, curFrame);
 		drawOptFlowColumn(flow,curFrame,CUT_COLUMN,1, CV_RGB(0, 255, 0));
 		imshow("optical flow",curFrame);
 		waitKey(33);
