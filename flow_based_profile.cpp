@@ -60,28 +60,25 @@ void save_x_component(Mat& input, Mat& output, int frameCounter, int threshold, 
 	double err_tol=5;
 	for (int row=0;row<input.rows;row++)
 	{
-		for (int col=0;col<input.cols;col++ )
+		Point2f& fxy=input.at<Point2f>(row,CUT_COLUMN);
+		fxy.y=0;
+		fxy.x=abs(fxy.x);
+		if(fxy.x<threshold)
 		{
-			Point2f& fxy=input.at<Point2f>(row,col);
-			fxy.y=0;
-			fxy.x=abs(fxy.x);
-			if(fxy.x<threshold)
+			Vec3f img=curFrame.at<Vec3b>(row,CUT_COLUMN);
+			Vec3f bg=BG_model.at<Vec3b>(row,0);
+			if (abs((img.val[0]-bg.val[0]<err_tol))&&(abs(img.val[1]-bg.val[1]<err_tol))&&(abs(img.val[2]-bg.val[2])<err_tol))
 			{
-				Vec3f img=curFrame.at<Vec3b>(row,col);
-				Vec3f bg=BG_model.at<Vec3b>(row,0);
-				if (abs((img.val[0]-bg.val[0]<err_tol))&&(abs(img.val[1]-bg.val[1]<err_tol))&&(abs(img.val[2]-bg.val[2])<err_tol))
-				{
-					output.at<char>(row,frameCounter)=255;
-				}
-				else
-				{
-					output.at<char>(row,frameCounter)=0;
-				}
+				output.at<char>(row,frameCounter)=255;
 			}
 			else
 			{
-				output.at<char>(row,frameCounter)=20*fxy.x;
+				output.at<char>(row,frameCounter)=0;
 			}
+		}
+		else
+		{
+			output.at<char>(row,frameCounter)=20*fxy.x;
 		}
 	}
 }
