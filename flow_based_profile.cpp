@@ -18,7 +18,7 @@ using namespace std;
 #define N_FRAMES 50
 //#define GPU
 # define PI           3.14159265358979323846  /* pi */
-# define CUT_COLUMN 120
+# define CUT_COLUMN 45
 
 #define max(a, b)  ((a > b) ? (a) : (b)) 
 #define min(a, b)  ((a < b) ? (a) : (b) )
@@ -66,6 +66,10 @@ void image_normalize(Mat& src,Mat& dst, int new_max, int new_min)
 		{
 			//find min and max
 			uchar val=src.at<uchar>(row,col);
+			if (val==max_val)
+			{
+				cout<<"blah"<<endl;
+			}
 			uchar new_val=((val-min_val)*coeff)+new_min;
 			dst.at<uchar>(row,col)=new_val;
 		}
@@ -93,18 +97,46 @@ static void drawOptFlowColumn(const Mat& flow, Mat& cflowmap, int column,int ste
 		//circle(cflowmap, Point(x,y), 2, color, -1);
 	}
 }
+//visualization for a range of columns
+static void drawOptFlowColumn(const Mat& flow, Mat& cflowmap, int column_begin,int column_end,int step, const Scalar& color,double line_thickness=1)
+{
+	for(int y = 0; y < cflowmap.rows; y += step)
+	{
+		double sum=0;
+		Point2f fxy;
+		for (int col=column_begin;col<column_end;col++)
+		{
+			const Point2f& tempxy = flow.at<Point2f>(y, col);
+			fxy=tempxy;
+			sum+=fxy.x;
+		}
+		int column=(column_end+column_begin)/2;
+		sum=sum/(column_end-column_begin);
+		line(cflowmap, Point(column,y), Point(cvRound(column+fxy.x), cvRound(y+fxy.y)),color,line_thickness);
+		//circle(cflowmap, Point(x,y), 2, color, -1);
+	}
+}
 
 void x_component(Mat& input, Mat& output, int frameNo)
 {
+	int delta=12;
 	for (int row=0;row<input.rows;row++)
 	{
-		Point2f& fxy=input.at<Point2f>(row,CUT_COLUMN);
-		fxy.y=0;
-		fxy.x=abs(fxy.x);
+		double sum=0;
+		Point2f fxy=0;
+		for (int col=-delta+CUT_COLUMN;col<+delta+CUT_COLUMN;col++)
+		{
+			Point2f& fxy=input.at<Point2f>(row,col);
+			fxy.y=0;
+			fxy.x=abs(fxy.x);
+			sum +=fxy.x;
+		}
+		sum=sum/((2*delta+1));
 		int mask_row=row/2;
 		int mask_col=frameNo*2+(row%2);
 		//output.at<uchar>(mask_row,mask_col)=(uchar)fxy.x;
-		output.at<uchar>(row,frameNo)=(uchar)fxy.x;
+		//output.at<uchar>(row,frameNo)=(uchar)fxy.x;
+		output.at<uchar>(row,frameNo)=(uchar)sum;
 		//cout<<row<<endl;
 	}
 }
@@ -174,6 +206,7 @@ int main()
 	Mat flow,flowx,flowy;
 	vector<Mat> flowChannels(2);
 	int thresh=5;
+	
 	//the array to keep track of local max flows
 	//list<double,int> local_max_list;
 	//double local_max=0;
@@ -186,7 +219,7 @@ int main()
 		return 0;
 	}
 
-	VideoCapture video =VideoCapture("18_cut.avi");
+	VideoCapture video =VideoCapture("16_cut_small.avi");
 	VideoWriter videoOut;
 	videoOut.open("major_flow.avi", CV_FOURCC('X','V','I','D'), video.get(CV_CAP_PROP_FPS), Size(video.get(CV_CAP_PROP_FRAME_WIDTH),video.get(CV_CAP_PROP_FRAME_HEIGHT)), true);
 	if (!videoOut.isOpened())
@@ -202,7 +235,9 @@ int main()
 	Mat mask_long=Mat(FG.rows*2,FG.cols/2,CV_8U);
 	mask_long.setTo(0);
 	temp_mat=showImg.clone();
-	curFrame=temp_mat(Rect(3*temp_mat.cols/4,0,temp_mat.cols/4,temp_mat.rows));
+	Rect roi=Rect(200,0,100,temp_mat.rows);
+	//curFrame=temp_mat(Rect(3*temp_mat.cols/4,0,temp_mat.cols/4,temp_mat.rows));
+	curFrame=temp_mat(roi);
 	cv::cvtColor(curFrame,lastGrey,CV_BGR2GRAY);
 	//initialize the motion condensed image
 	motionCondensed=Mat(showImg.rows,(int)total_frames,CV_8UC3);
@@ -218,17 +253,17 @@ int main()
 			break;
 		}
 		temp_mat=showImg.clone();
-		curFrame=temp_mat(Rect(3*temp_mat.cols/4,0,temp_mat.cols/4,temp_mat.rows));
+		curFrame=temp_mat(roi);
 		cv::cvtColor(curFrame,curGrey,CV_BGR2GRAY);
-		calcOpticalFlowFarneback(lastGrey,curGrey,flow,0.5,8,16,10,5,1.1,0);
+		calcOpticalFlowFarneback(lastGrey,curGrey,flow,0.5,4,25,50,5,1.1,0);
 // 		float a,b;
 // 		find_mat_max(flow,a,b);
 		drawOptFlowMap(flow,curFrame,8, CV_RGB(0, 255, 0));
 		//save_x_component(flow,mask_img,frameCounter, FG,CUT_COLUMN);
 		x_component(flow,mask_long,frameCounter);
-		drawOptFlowColumn(flow,curFrame,CUT_COLUMN,1, CV_RGB(0, 255, 0));
+		//drawOptFlowColumn(flow,curFrame,CUT_COLUMN,1, CV_RGB(0, 255, 0));
 		imshow("optical flow",curFrame);
-		waitKey(33);
+		waitKey(2);
 		frameCounter++;
 
 	}
