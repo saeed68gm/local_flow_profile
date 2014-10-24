@@ -20,8 +20,35 @@ using namespace std;
 # define PI           3.14159265358979323846  /* pi */
 # define CUT_COLUMN 45
 
+//Gray lookup table
+uchar GrayTable[256];
+
 #define max(a, b)  ((a > b) ? (a) : (b)) 
 #define min(a, b)  ((a < b) ? (a) : (b) )
+
+//
+void buildGrayTable(uchar* GrayTable)
+{
+	uchar val=0;
+	for (int i=0;i<256;i++)
+	{
+		GrayTable[i]=val;
+		val+=2;
+	}
+}
+
+//map the double values to a range of values
+int doubleToIntMap(double input, int begin, int end)
+{
+	int output;
+	if((int)abs(input)>end)
+	{
+		output=(int)abs(input);
+	}
+	else
+		output=(int)abs(input);
+	return output;
+}
 
 void find_mat_max(Mat& src, float& max_val,float& min_val)
 {
@@ -77,6 +104,29 @@ void image_normalize(Mat& src,Mat& dst, int new_max, int new_min)
 
 }
 
+static void OptFlowMagColorVis(const Mat& flow, Mat& colorImage)
+{
+	for(int y = 0; y < colorImage.rows; y += 1)
+		for(int x = 0; x < colorImage.cols; x += 1)
+		{
+			const Point2f& fxy = flow.at<Point2f>(y, x); 
+			double mag=sqrt((fxy.x*fxy.x)+(fxy.y*fxy.y));
+			//assign the value from the lookup table (i.e. LUT[mag]) to the colorImage
+// 			if (mag>=1)
+// 			{
+// 				cout<<"looky";
+// 			}
+			int index=doubleToIntMap(mag,0,256);
+			auto dep=colorImage.channels();
+			if (colorImage.channels()==1)
+			{
+				colorImage.at<uchar>(y,x)=GrayTable[index];
+			}
+			else
+				cout<<"hahaha, I haven't write the code for a color image, you SIR are in trouble!"<<endl;
+		}
+}
+
 static void drawOptFlowMap(const Mat& flow, Mat& cflowmap, int step, const Scalar& color,double line_thickness=1)
 {
 	for(int y = 0; y < cflowmap.rows; y += step)
@@ -108,11 +158,11 @@ static void drawOptFlowColumn(const Mat& flow, Mat& cflowmap, int column_begin,i
 		{
 			const Point2f& tempxy = flow.at<Point2f>(y, col);
 			fxy=tempxy;
-			sum+=fxy.x;
+			sum+=abs(fxy.x);
 		}
 		int column=(column_end+column_begin)/2;
 		sum=sum/(column_end-column_begin);
-		line(cflowmap, Point(column,y), Point(cvRound(column+fxy.x), cvRound(y+fxy.y)),color,line_thickness);
+		line(cflowmap, Point(column,y), Point(cvRound(column+sum), cvRound(y+fxy.y)),color,line_thickness);
 		//circle(cflowmap, Point(x,y), 2, color, -1);
 	}
 }
@@ -130,8 +180,16 @@ void x_component(Mat& input, Mat& output, int frameNo)
 			fxy.y=0;
 			fxy.x=abs(fxy.x);
 			sum +=fxy.x;
+			if (sum>=DBL_MAX)
+			{
+				cout<<"warning, double over flow"<<endl;
+			}
 		}
 		sum=sum/((2*delta+1));
+		if (sum>=255)
+		{
+			cout<<"warning,uchar over flow"<<endl;
+		}
 		int mask_row=row/2;
 		int mask_col=frameNo*2+(row%2);
 		//output.at<uchar>(mask_row,mask_col)=(uchar)fxy.x;
@@ -206,6 +264,7 @@ int main()
 	Mat flow,flowx,flowy;
 	vector<Mat> flowChannels(2);
 	int thresh=5;
+	buildGrayTable(GrayTable);
 	
 	//the array to keep track of local max flows
 	//list<double,int> local_max_list;
@@ -255,15 +314,18 @@ int main()
 		temp_mat=showImg.clone();
 		curFrame=temp_mat(roi);
 		cv::cvtColor(curFrame,curGrey,CV_BGR2GRAY);
-		calcOpticalFlowFarneback(lastGrey,curGrey,flow,0.5,4,25,50,5,1.1,0);
+		calcOpticalFlowFarneback(lastGrey,curGrey,flow,0.5,1,10,10,25,2.0,2 );
 // 		float a,b;
 // 		find_mat_max(flow,a,b);
-		drawOptFlowMap(flow,curFrame,8, CV_RGB(0, 255, 0));
+		//drawOptFlowMap(flow,curFrame,8, CV_RGB(0, 255, 0));
+		OptFlowMagColorVis(flow,curGrey);
+		imshow("optical flow magnitude",curGrey);
 		//save_x_component(flow,mask_img,frameCounter, FG,CUT_COLUMN);
 		x_component(flow,mask_long,frameCounter);
 		//drawOptFlowColumn(flow,curFrame,CUT_COLUMN,1, CV_RGB(0, 255, 0));
+		drawOptFlowColumn(flow,curFrame,CUT_COLUMN-12,CUT_COLUMN+12,1, CV_RGB(0, 255, 0));
 		imshow("optical flow",curFrame);
-		waitKey(2);
+		waitKey(120);
 		frameCounter++;
 
 	}
