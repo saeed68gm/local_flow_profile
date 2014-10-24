@@ -12,6 +12,7 @@
 #include <math.h>
 #include <cmath>
 #include <limits>
+#include <gpu/gpu.hpp>
 using namespace cv;
 using namespace std;
 
@@ -19,6 +20,14 @@ using namespace std;
 //#define GPU
 # define PI           3.14159265358979323846  /* pi */
 # define CUT_COLUMN 45
+
+//global values and parameters
+const float alpha_ = 0.12;
+const float gamma_ = 5;
+const float scale_factor_ = 0.9;
+const int inner_iterations_ = 3;
+const int outer_iterations_ = 50;
+const int solver_iterations_ = 20;
 
 //Gray lookup table
 uchar GrayTable[256];
@@ -265,7 +274,7 @@ int main()
 	vector<Mat> flowChannels(2);
 	int thresh=5;
 	buildGrayTable(GrayTable);
-	
+	gpu	::GpuMat frame0GPU, frame1GPU, uGPU, vGPU;
 	//the array to keep track of local max flows
 	//list<double,int> local_max_list;
 	//double local_max=0;
@@ -315,6 +324,7 @@ int main()
 		curFrame=temp_mat(roi);
 		cv::cvtColor(curFrame,curGrey,CV_BGR2GRAY);
 		calcOpticalFlowFarneback(lastGrey,curGrey,flow,0.5,1,10,10,25,2.0,2 );
+		gpu::BroxOpticalFlow dflow(alpha_,gamma_,scale_factor_,inner_iterations_,outer_iterations_,solver_iterations_);
 // 		float a,b;
 // 		find_mat_max(flow,a,b);
 		//drawOptFlowMap(flow,curFrame,8, CV_RGB(0, 255, 0));
