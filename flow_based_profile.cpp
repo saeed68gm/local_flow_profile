@@ -123,25 +123,6 @@ static void OptFlowMagColorVis(const Mat& flow, Mat& colorImage)
 		}
 }
 
-//overload for c API
-static void OptFlowMagColorVis(const CvMat* flowx,const CvMat* flowy, Mat& colorImage)
-{
-	for(int y = 0; y < colorImage.rows; y += 1)
-		for(int x = 0; x < colorImage.cols; x += 1)
-		{
-			const float fx=cvGetReal2D(flowx,y,x);
-			const float fy=cvGetReal2D(flowy,y,x);
-			double mag=sqrt((fx*fx)+(fy*fy));
-			int index=doubleToIntMap(mag,0,256);
-			auto dep=colorImage.channels();
-			if (colorImage.channels()==1)
-			{
-				colorImage.at<uchar>(y,x)=GrayTable[index];
-			}
-			else
-				cout<<"hahaha, I haven't write the code for a color image, you SIR are in trouble!"<<endl;
-		}
-}
 static void drawOptFlowMap(const Mat& flow, Mat& cflowmap, int step, const Scalar& color,double line_thickness=1)
 {
 	for(int y = 0; y < cflowmap.rows; y += step)
@@ -331,20 +312,10 @@ int main()
 		cv::cvtColor(curFrame,curGrey,CV_BGR2GRAY);
 		//calcOpticalFlowFarneback(lastGrey,curGrey,flow,0.5,1,10,10,25,2.0,2 );
 		//calcOpticalFlowSF(lastFrame,curFrame,flow,3,2,4);
-		IplImage* cvLast=&(IplImage)lastGrey;
-		IplImage* cvCur=&(IplImage)curGrey;
-		CvMat* fx,*fy;
-		fx=cvCreateMat(lastGrey.rows,lastGrey.cols,CV_32FC1);
-		fy=cvCreateMat(lastGrey.rows,lastGrey.cols,CV_32FC1);
-
-		CvTermCriteria criteria = cvTermCriteria (CV_TERMCRIT_ITER | CV_TERMCRIT_EPS, 20, 0.1);
-
-		cvCalcOpticalFlowHS(cvLast,cvCur,0,fx,fy,0.5,criteria);
 // 		float a,b;
 // 		find_mat_max(flow,a,b);
 		//drawOptFlowMap(flow,curFrame,8, CV_RGB(0, 255, 0));
 		//OptFlowMagColorVis(flow,curGrey);
-		OptFlowMagColorVis(fx,fy,curGrey);
 		imshow("optical flow magnitude",curGrey);
 		//save_x_component(flow,mask_img,frameCounter, FG,CUT_COLUMN);
 		//x_component(flow,mask_long,frameCounter);
