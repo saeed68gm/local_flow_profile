@@ -294,6 +294,7 @@ int main()
 	//curFrame=temp_mat(Rect(3*temp_mat.cols/4,0,temp_mat.cols/4,temp_mat.rows));
 	curFrame=temp_mat(roi);
 	cv::cvtColor(curFrame,lastGrey,CV_BGR2GRAY);
+	lastFrame=curFrame.clone();
 	//initialize the motion condensed image
 	motionCondensed=Mat(showImg.rows,(int)total_frames,CV_8UC3);
 	double displacementX=0, displacementY=0;
@@ -311,7 +312,7 @@ int main()
 		curFrame=temp_mat(roi);
 		cv::cvtColor(curFrame,curGrey,CV_BGR2GRAY);
 		//calcOpticalFlowFarneback(lastGrey,curGrey,flow,0.5,1,10,10,25,2.0,2 );
-		//calcOpticalFlowSF(lastFrame,curFrame,flow,3,2,4);
+		calcOpticalFlowSF(lastFrame,curFrame,flow,1,2,4);
 // 		float a,b;
 // 		find_mat_max(flow,a,b);
 		//drawOptFlowMap(flow,curFrame,8, CV_RGB(0, 255, 0));
