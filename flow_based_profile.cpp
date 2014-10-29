@@ -338,8 +338,10 @@ int main()
 		fy=cvCreateMat(lastGrey.rows,lastGrey.cols,CV_32FC1);
 
 		CvTermCriteria criteria = cvTermCriteria (CV_TERMCRIT_ITER | CV_TERMCRIT_EPS, 20, 0.1);
-
-		cvCalcOpticalFlowHS(cvLast,cvCur,0,fx,fy,0.5,criteria);
+		CvSize block_size= CvSize();
+		block_size.height=3;
+		block_size.width=3;
+		cvCalcOpticalFlowBM(cvLast,cvCur,block_size,block_size,block_size,0,fx,fy);
 // 		float a,b;
 // 		find_mat_max(flow,a,b);
 		//drawOptFlowMap(flow,curFrame,8, CV_RGB(0, 255, 0));
