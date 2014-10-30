@@ -351,42 +351,30 @@ int main()
 		temp_mat=showImg.clone();
 		curFrame=temp_mat(roi);
 		cv::cvtColor(curFrame,curGrey,CV_BGR2GRAY);
-		//calcOpticalFlowFarneback(lastGrey,curGrey,flow,0.5,1,10,10,25,2.0,2 );
-		//calcOpticalFlowSF(lastFrame,curFrame,flow,3,2,4);
-
-
-		CvTermCriteria criteria = cvTermCriteria (CV_TERMCRIT_ITER | CV_TERMCRIT_EPS, 20, 0.1);
-		CalcOpticalFlowHS(lastGrey,curGrey,flow,0,100,criteria);
+		CvTermCriteria criteria = cvTermCriteria (CV_TERMCRIT_ITER | CV_TERMCRIT_EPS, 20, 0.01);
+		CalcOpticalFlowHS(lastGrey,curGrey,flow,0,20,criteria);
 		
 // 		float a,b;
 // 		find_mat_max(flow,a,b);
 		//drawOptFlowMap(flow,curFrame,8, CV_RGB(0, 255, 0));
 		OptFlowMagColorVis(flow,curGrey);
-		//OptFlowMagColorVis(fx,fy,curGrey);
 		imshow("optical flow magnitude",curGrey);
-		//save_x_component(flow,mask_img,frameCounter, FG,CUT_COLUMN);
+		save_x_component(flow,mask_img,frameCounter, FG,CUT_COLUMN);
 		//x_component(flow,mask_long,frameCounter);
 		//drawOptFlowColumn(flow,curFrame,CUT_COLUMN,1, CV_RGB(0, 255, 0));
 		//drawOptFlowColumn(flow,curFrame,CUT_COLUMN-12,CUT_COLUMN+12,1, CV_RGB(0, 255, 0));
 		//imshow("optical flow",curFrame);
-		waitKey(120);
+		waitKey(1);
 		frameCounter++;
 
 	}
+
+ 	Mat temp_mask= Mat(mask_img);
+	imwrite("mask-1.tiff",mask_img);
+	image_normalize(mask_img,temp_mask,255,0);
+	bitwise_and(temp_mask,FG,mask_img);
 	
-	//mask_img=imread("mask - Copy.tiff",0);
-// 	bitwise_and(mask_img,FG,mask_img);
- 	Mat temp_mask=Mat(mask_img);
-// 	normalize(mask_img,temp_mask,255,0,CV_MINMAX);
-// 	//GaussianBlur(temp_mask,mask_img, Size(5,5),1.5);
-// 	imwrite("mask.tiff",temp_mask);
-	//mask_long=imread("mask-long-edited.tiff",0);
-	temp_mask=Mat(mask_long);
-	image_normalize(mask_long,temp_mask,255,0);
-	resize(temp_mask,mask_img,mask_img.size	());
-	bitwise_and(mask_img,FG,temp_mask);
-	
-	imwrite("mask-long.tiff",temp_mask);
+	imwrite("mask-long.tiff",mask_img);
 	waitKey();
 	return 0;
 }
