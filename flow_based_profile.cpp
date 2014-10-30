@@ -271,7 +271,7 @@ int modeEachRow(const Mat& input,float& mode)
 }
 //wrapper function around the c API cvCalcOpticalFlowHS
 //both input images must be 8bit single channel images
-void CalcOpticalFlowHS(Mat& last, Mat& current,int use_pre,Mat& flowx, Mat& flowy,double lambda, CvTermCriteria& criteria )
+void CalcOpticalFlowHS(Mat& last, Mat& current,Mat& flow, int use_pre,double lambda, CvTermCriteria& criteria )
 {
 	IplImage* cvLast=&(IplImage)last;
 	IplImage* cvCur=&(IplImage)current;
@@ -280,6 +280,14 @@ void CalcOpticalFlowHS(Mat& last, Mat& current,int use_pre,Mat& flowx, Mat& flow
 	fy=cvCreateMat(last.rows,last.cols,CV_32FC1);
 	cvSetZero(fx);
 	cvSetZero(fy);
+	cvCalcOpticalFlowHS(cvLast,cvCur,use_pre,fx,fy,lambda,criteria);
+	Mat flowx=fx;
+	Mat flowy=fy;
+	vector<Mat> arrOfMat= vector<Mat>();
+	arrOfMat.push_back(flowx);
+	arrOfMat.push_back(flowy);
+	cv::merge(arrOfMat,flow);
+	return;
 
 }
 
@@ -348,12 +356,12 @@ int main()
 
 
 		CvTermCriteria criteria = cvTermCriteria (CV_TERMCRIT_ITER | CV_TERMCRIT_EPS, 20, 0.1);
-
-		cvCalcOpticalFlowHS(cvLast,cvCur,0,fx,fy,0.5,criteria);
+		CalcOpticalFlowHS(lastGrey,curGrey,flow,0,100,criteria);
+		
 // 		float a,b;
 // 		find_mat_max(flow,a,b);
 		//drawOptFlowMap(flow,curFrame,8, CV_RGB(0, 255, 0));
-		//OptFlowMagColorVis(flow,curGrey);
+		OptFlowMagColorVis(flow,curGrey);
 		//OptFlowMagColorVis(fx,fy,curGrey);
 		imshow("optical flow magnitude",curGrey);
 		//save_x_component(flow,mask_img,frameCounter, FG,CUT_COLUMN);
