@@ -336,12 +336,21 @@ int main()
 		CvMat* fx,*fy;
 		fx=cvCreateMat(lastGrey.rows,lastGrey.cols,CV_32FC1);
 		fy=cvCreateMat(lastGrey.rows,lastGrey.cols,CV_32FC1);
+		int block_size = 3;
+		int shift_size = 1;
+		int rows,cols;
+		CvSize block = cvSize(block_size, block_size);
+		CvSize shift = cvSize(shift_size, shift_size);
+		CvSize max_range = cvSize(50, 50);
 
-		CvTermCriteria criteria = cvTermCriteria (CV_TERMCRIT_ITER | CV_TERMCRIT_EPS, 20, 0.1);
-		CvSize block_size= CvSize();
-		block_size.height=3;
-		block_size.width=3;
-		cvCalcOpticalFlowBM(cvLast,cvCur,block_size,block_size,block_size,0,fx,fy);
+		rows = int(ceil (double (cvLast->height) / block_size));
+		cols = int(ceil (double (cvLast->width) / block_size));
+		fx = cvCreateMat(rows, cols, CV_32FC1);
+		fy = cvCreateMat(rows, cols, CV_32FC1);
+		cvSetZero(fx);
+		cvSetZero(fy);
+
+		cvCalcOpticalFlowBM(cvLast,cvCur,block,shift,max_range,0,fx,fy);
 // 		float a,b;
 // 		find_mat_max(flow,a,b);
 		//drawOptFlowMap(flow,curFrame,8, CV_RGB(0, 255, 0));
