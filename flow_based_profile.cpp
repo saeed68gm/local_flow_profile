@@ -162,10 +162,7 @@ void x_component(Mat& input, Mat& output, int frameNo)
 {
 	for (int row=0;row<input.rows;row++)
 	{
-		Point2f& fxy=input.at<Point2f>(row,CUT_COLUMN);
-		fxy.y=0;
-		fxy.x=abs(fxy.x);
-		output.at<uchar>(row,frameNo)=(uchar)fxy.x;
+		output.at<uchar>(row,frameNo)=input.at<uchar>(row,CUT_COLUMN);
 
 	}
 }
@@ -284,10 +281,10 @@ void CalcOpticalFlowHS(Mat& last, Mat& current,Mat& flow, int use_pre,double lam
 int main()   
 {
 	//image decelerations
-	Mat showImg,curFrame,lastFrame,lastGrey,curGrey,temp_mat;
+	Mat showImg,curFrame,lastFrame,lastGray,curGray,nextGray,temp_mat;
 	Mat motionCondensed;
 	int kernelSize=7;
-	Mat flow,flowx,flowy;
+	Mat grad,flowx,flowy,nextGrad,laplacian;
 	vector<Mat> flowChannels(2);
 	int thresh=5;
 	buildGrayTable(GrayTable);
@@ -317,13 +314,13 @@ int main()
 	Rect roi=Rect(200,0,100,temp_mat.rows);
 	//curFrame=temp_mat(Rect(3*temp_mat.cols/4,0,temp_mat.cols/4,temp_mat.rows));
 	curFrame=temp_mat(roi);
-	cv::cvtColor(curFrame,lastGrey,CV_BGR2GRAY);
+	cv::cvtColor(curFrame,lastGray,CV_BGR2GRAY);
 	//initialize the motion condensed image
 	motionCondensed=Mat(showImg.rows,(int)total_frames,CV_8UC3);
 	double displacementX=0, displacementY=0;
 
 	VideoWriter videoOut;
-	videoOut.open("major_flow.avi", CV_FOURCC('D','I','V','X'), video.get(CV_CAP_PROP_FPS),lastGrey.size(), true);
+	videoOut.open("major_flow.avi", CV_FOURCC('D','I','V','X'), video.get(CV_CAP_PROP_FPS),lastGray.size(), true);
 	if (!videoOut.isOpened())
 	{
 		cout  << "Could not open the output video for write! "  << endl;
@@ -342,29 +339,41 @@ int main()
 		}
 		temp_mat=showImg.clone();
 		curFrame=temp_mat(roi);
-		cv::cvtColor(curFrame,curGrey,CV_BGR2GRAY);
-		CvTermCriteria criteria = cvTermCriteria (CV_TERMCRIT_ITER | CV_TERMCRIT_EPS, 100, 0.01);
-		CalcOpticalFlowHS(lastGrey,curGrey,flow,0,20,criteria);
-		
+		cv::cvtColor(curFrame,curGray,CV_BGR2GRAY);
+		cv::absdiff(curGray,lastGray,grad);
+
+		video>>showImg;
+		temp_mat=showImg.clone();
+		curFrame=temp_mat(roi);
+		cv::cvtColor(curFrame,nextGray,CV_BGR2GRAY);
+		cv::absdiff(nextGray,curGray,nextGrad);
+
+		cv::absdiff(nextGrad,grad,laplacian);
+		//laplacian=nextGrad-grad;
+
 // 		float a,b;
 // 		find_mat_max(flow,a,b);
-		drawOptFlowMap(flow,curFrame,8, CV_RGB(0, 255, 0));
-		OptFlowMagColorVis(flow,curGrey);
-		imshow("optical flow magnitude",curGrey);
-		videoOut<<curGrey;
+		//drawOptFlowMap(flow,curFrame,8, CV_RGB(0, 255, 0));
+		//OptFlowMagColorVis(flow,curGrey);
+		//imshow("gradient magnitude",grad);
+		imshow("laplacian ",laplacian);
+		videoOut<<curGray;
 		//save_x_component(flow,mask_img,frameCounter, FG,CUT_COLUMN);
-		x_component(flow,mask_long,frameCounter);
+		//x_component(flow,mask_long,frameCounter);
+		x_component(grad,mask_long,frameCounter);
+		Mat temp_mask= Mat(mask_long);
+	
+		image_normalize(mask_long,temp_mask,255,0);
+		imwrite("mask-1.tiff",temp_mask);
 		//drawOptFlowColumn(flow,curFrame,CUT_COLUMN,1, CV_RGB(0, 255, 0));
 		//drawOptFlowColumn(flow,curFrame,CUT_COLUMN-12,CUT_COLUMN+12,1, CV_RGB(0, 255, 0));
 		imshow("optical flow",curFrame);
-		waitKey();
+		waitKey(10);
+		lastGray=curGray.clone();
 		frameCounter++;
 
 	}
- 	Mat temp_mask= Mat(mask_long);
-	
-	image_normalize(mask_long,temp_mask,255,0);
-	imwrite("mask-1.tiff",temp_mask);
+	Mat temp_mask;
 	resize(temp_mask,mask_img,FG.size());
 	bitwise_and(mask_img,FG,mask_img);
 	
