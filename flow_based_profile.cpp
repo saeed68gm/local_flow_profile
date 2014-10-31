@@ -94,10 +94,6 @@ void image_normalize(Mat& src,Mat& dst, int new_max, int new_min)
 		{
 			//find min and max
 			uchar val=src.at<uchar>(row,col);
-			if (val==max_val)
-			{
-				cout<<"blah"<<endl;
-			}
 			uchar new_val=((val-min_val)*coeff)+new_min;
 			dst.at<uchar>(row,col)=new_val;
 		}
@@ -123,25 +119,6 @@ static void OptFlowMagColorVis(const Mat& flow, Mat& colorImage)
 		}
 }
 
-//overload for c API
-static void OptFlowMagColorVis(const CvMat* flowx,const CvMat* flowy, Mat& colorImage)
-{
-	for(int y = 0; y < colorImage.rows; y += 1)
-		for(int x = 0; x < colorImage.cols; x += 1)
-		{
-			const float fx=cvGetReal2D(flowx,y,x);
-			const float fy=cvGetReal2D(flowy,y,x);
-			double mag=sqrt((fx*fx)+(fy*fy));
-			int index=doubleToIntMap(mag,0,256);
-			auto dep=colorImage.channels();
-			if (colorImage.channels()==1)
-			{
-				colorImage.at<uchar>(y,x)=GrayTable[index];
-			}
-			else
-				cout<<"hahaha, I haven't write the code for a color image, you SIR are in trouble!"<<endl;
-		}
-}
 static void drawOptFlowMap(const Mat& flow, Mat& cflowmap, int step, const Scalar& color,double line_thickness=1)
 {
 	for(int y = 0; y < cflowmap.rows; y += step)
@@ -181,8 +158,19 @@ static void drawOptFlowColumn(const Mat& flow, Mat& cflowmap, int column_begin,i
 		//circle(cflowmap, Point(x,y), 2, color, -1);
 	}
 }
-
 void x_component(Mat& input, Mat& output, int frameNo)
+{
+	for (int row=0;row<input.rows;row++)
+	{
+		Point2f& fxy=input.at<Point2f>(row,CUT_COLUMN);
+		fxy.y=0;
+		fxy.x=abs(fxy.x);
+		output.at<uchar>(row,frameNo)=(uchar)fxy.x;
+
+	}
+}
+
+void x_component_range(Mat& input, Mat& output, int frameNo)
 {
 	int delta=12;
 	for (int row=0;row<input.rows;row++)
@@ -283,6 +271,7 @@ void CalcOpticalFlowHS(Mat& last, Mat& current,Mat& flow, int use_pre,double lam
 	cvCalcOpticalFlowHS(cvLast,cvCur,use_pre,fx,fy,lambda,criteria);
 	Mat flowx=fx;
 	Mat flowy=fy;
+	//flowx=Mat::zeros(flowy.size(),flowy.type());
 	vector<Mat> arrOfMat= vector<Mat>();
 	arrOfMat.push_back(flowx);
 	arrOfMat.push_back(flowy);
@@ -316,13 +305,7 @@ int main()
 	}
 
 	VideoCapture video =VideoCapture("16_cut_small.avi");
-	VideoWriter videoOut;
-	videoOut.open("major_flow.avi", CV_FOURCC('X','V','I','D'), video.get(CV_CAP_PROP_FPS), Size(video.get(CV_CAP_PROP_FRAME_WIDTH),video.get(CV_CAP_PROP_FRAME_HEIGHT)), true);
-	if (!videoOut.isOpened())
-	{
-		cout  << "Could not open the output video for write! "  << endl;
-		return -1;
-	}
+
 	double total_frames;
 	total_frames=video.get(CV_CAP_PROP_FRAME_COUNT);
 	video>>showImg;
@@ -338,6 +321,15 @@ int main()
 	//initialize the motion condensed image
 	motionCondensed=Mat(showImg.rows,(int)total_frames,CV_8UC3);
 	double displacementX=0, displacementY=0;
+
+	VideoWriter videoOut;
+	videoOut.open("major_flow.avi", CV_FOURCC('D','I','V','X'), video.get(CV_CAP_PROP_FPS),lastGrey.size(), true);
+	if (!videoOut.isOpened())
+	{
+		cout  << "Could not open the output video for write! "  << endl;
+		return -1;
+	}
+
 	int frameCounter=1;
 	char key=0;
 	
@@ -351,30 +343,31 @@ int main()
 		temp_mat=showImg.clone();
 		curFrame=temp_mat(roi);
 		cv::cvtColor(curFrame,curGrey,CV_BGR2GRAY);
-		CvTermCriteria criteria = cvTermCriteria (CV_TERMCRIT_ITER | CV_TERMCRIT_EPS, 20, 0.01);
+		CvTermCriteria criteria = cvTermCriteria (CV_TERMCRIT_ITER | CV_TERMCRIT_EPS, 100, 0.01);
 		CalcOpticalFlowHS(lastGrey,curGrey,flow,0,20,criteria);
 		
 // 		float a,b;
 // 		find_mat_max(flow,a,b);
-		//drawOptFlowMap(flow,curFrame,8, CV_RGB(0, 255, 0));
+		drawOptFlowMap(flow,curFrame,8, CV_RGB(0, 255, 0));
 		OptFlowMagColorVis(flow,curGrey);
 		imshow("optical flow magnitude",curGrey);
-		save_x_component(flow,mask_img,frameCounter, FG,CUT_COLUMN);
-		//x_component(flow,mask_long,frameCounter);
+		videoOut<<curGrey;
+		//save_x_component(flow,mask_img,frameCounter, FG,CUT_COLUMN);
+		x_component(flow,mask_long,frameCounter);
 		//drawOptFlowColumn(flow,curFrame,CUT_COLUMN,1, CV_RGB(0, 255, 0));
 		//drawOptFlowColumn(flow,curFrame,CUT_COLUMN-12,CUT_COLUMN+12,1, CV_RGB(0, 255, 0));
-		//imshow("optical flow",curFrame);
-		waitKey(1);
+		imshow("optical flow",curFrame);
+		waitKey();
 		frameCounter++;
 
 	}
-
- 	Mat temp_mask= Mat(mask_img);
-	imwrite("mask-1.tiff",mask_img);
-	image_normalize(mask_img,temp_mask,255,0);
-	bitwise_and(temp_mask,FG,mask_img);
+ 	Mat temp_mask= Mat(mask_long);
+	
+	image_normalize(mask_long,temp_mask,255,0);
+	imwrite("mask-1.tiff",temp_mask);
+	resize(temp_mask,mask_img,FG.size());
+	bitwise_and(mask_img,FG,mask_img);
 	
 	imwrite("mask-long.tiff",mask_img);
-	waitKey();
 	return 0;
 }
